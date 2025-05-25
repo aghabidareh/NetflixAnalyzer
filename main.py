@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.express as px
 import re
 
-# Load and preprocess data
 try:
     df = pd.read_csv("netflix_titles.csv")
 except FileNotFoundError:
@@ -186,7 +185,7 @@ def update_dashboard(year_range, type_selected, country_selected, actor_selected
         ]
 
     if country_selected:
-        filtered = filtered[filtered['country'].str.contains(re.escape(country_selected), case=scrape_text, na=False)]
+        filtered = filtered[filtered['country'].str.contains(re.escape(country_selected), case=False, na=False)]
     if actor_selected:
         filtered = filtered[filtered['cast'].str.contains(re.escape(actor_selected), case=False, na=False)]
 
