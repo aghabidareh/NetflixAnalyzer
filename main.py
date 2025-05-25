@@ -11,4 +11,4 @@ df['listed_in'] = df['listed_in'].fillna("Unknown")
 df['cast'] = df['cast'].fillna("Unknown")
 df['duration'] = df['duration'].fillna("Unknown")
 
-
+all_casts = df['cast'].str.split(', ').explode().value_counts().nlargest(50).index.tolist()
