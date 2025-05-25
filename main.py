@@ -24,7 +24,7 @@ df['duration_type'] = df['duration'].str.extract('([a-zA-Z]+)').fillna("Unknown"
 all_casts = df['cast'].str.split(', ').explode().str.strip().value_counts().nlargest(50).index.tolist()
 all_countries = sorted(set(c for c in df['country'].str.split(', ').explode().str.strip() if c and c != "Unknown"))
 
-min_year = max(2000, df[df['release_year'] > 0]['release_year'].min())  # Exclude invalid years
+min_year = max(2000, df[df['release_year'] > 0]['release_year'].min())
 max_year = df['release_year'].max()
 
 def create_empty_figure(title):
