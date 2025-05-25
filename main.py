@@ -77,4 +77,52 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
     dcc.Graph(id='year-trend')
 ])
 
+@app.callback(
+    [Output('genre-bar', 'figure'),
+     Output('rating-pie', 'figure'),
+     Output('year-trend', 'figure')],
+    [Input('year-range', 'value'),
+     Input('type-selector', 'value'),
+     Input('country-selector', 'value'),
+     Input('actor-selector', 'value'),
+     Input('duration-slider', 'value')]
+)
+def update_dashboard(year_range, type_selected, country_selected, actor_selected, duration_range):
+    filtered = df[
+        (df['release_year'] >= year_range[0]) &
+        (df['release_year'] <= year_range[1]) &
+        (df['type'] == type_selected) &
+        (df['country'].str.contains(country_selected)) &
+        (df['cast'].str.contains(actor_selected)) &
+        ((df['duration_int'] >= duration_range[0]) & (df['duration_int'] <= duration_range[1]) if type_selected == 'Movie' else True)
+    ]
+
+    genre = filtered['listed_in'].str.split(',').explode().str.strip().value_counts().nlargest(10)
+    fig_genre = px.bar(
+        x=genre.index, y=genre.values,
+        labels={'x': 'Genre', 'y': 'Count'},
+        title='Top Genres',
+        color_discrete_sequence=['#E50914']
+    )
+    fig_genre.update_layout(template='plotly_dark')
+
+    rating = filtered['rating'].value_counts().nlargest(10)
+    fig_rating = px.pie(
+        names=rating.index, values=rating.values,
+        title='Rating Distribution',
+        color_discrete_sequence=px.colors.sequential.Reds
+    )
+    fig_rating.update_layout(template='plotly_dark')
+
+    trend = df[(df['type'] == type_selected)].groupby('release_year').size()
+    fig_trend = px.line(
+        x=trend.index, y=trend.values,
+        labels={'x': 'Year', 'y': 'Number of Titles'},
+        title='Content Trend Over Years',
+        markers=True,
+        color_discrete_sequence=['#08F7FE']
+    )
+    fig_trend.update_layout(template='plotly_dark')
+
+    return fig_genre, fig_rating, fig_trend
 
