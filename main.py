@@ -53,110 +53,210 @@ app = dash.Dash(__name__, external_stylesheets=[
 ])
 app.title = "Netflix Dashboard V2"
 
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+        <style>
+            body {
+                margin: 0;
+                font-family: 'Roboto', sans-serif;
+            }
+            .container {
+                padding: 2rem;
+                min-height: 100vh;
+                background: linear-gradient(135deg, #141414 0%, #1c2526 100%);
+                color: white;
+                box-sizing: border-box;
+            }
+            .filter-container {
+                background-color: #1f1f1f;
+                padding: 1.5rem;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                margin-bottom: 2rem;
+            }
+            .filter-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+                justify-content: space-between;
+            }
+            .filter-item {
+                flex: 1;
+                min-width: 200px;
+                max-width: 100%;
+            }
+            .graph-container {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 1.5rem;
+            }
+            .graph {
+                width: 100%;
+                height: 400px;
+            }
+            .dash-dropdown .Select-control {
+                background-color: #2a2a2a !important;
+                color: white !important;
+                border: none !important;
+            }
+            .dash-dropdown .Select-menu-outer {
+                background-color: #2a2a2a !important;
+            }
+            .dash-dropdown .Select-value-label {
+                color: white !important;
+            }
+            @media (max-width: 768px) {
+                .container {
+                    padding: 1rem;
+                }
+                .filter-container {
+                    padding: 1rem;
+                }
+                .graph {
+                    height: 300px;
+                }
+                .dash-slider {
+                    font-size: 12px;
+                }
+            }
+            @media (max-width: 480px) {
+                .filter-item {
+                    min-width: 100%;
+                }
+                .graph {
+                    height: 250px;
+                }
+                h1 {
+                    font-size: 1.5rem !important;
+                }
+                h3 {
+                    font-size: 1.2rem !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+'''
+
 app.layout = html.Div(
-    style={
-        'background': 'linear-gradient(135deg, #141414 0%, #1c2526 100%)',
-        'color': 'white',
-        'padding': '40px',
-        'fontFamily': 'Roboto, sans-serif',
-        'minHeight': '100vh'
-    },
+    className='container',
     children=[
         html.Div(
             html.H1(
-                children=[html.I(className='fas fa-film', style={'marginRight': '10px'}),
+                children=[html.I(className='fas fa-film', style={'marginRight': '0.5rem'}),
                           "Netflix Analytics Dashboard"],
                 style={
                     'textAlign': 'center',
                     'color': '#E50914',
-                    'fontSize': '36px',
+                    'fontSize': '2.5rem',
                     'fontWeight': '700',
-                    'marginBottom': '30px'
+                    'marginBottom': '1.5rem'
                 }
             )
         ),
 
         html.Div(
+            className='filter-container',
             children=[
-                html.H3("Filter Options", style={'color': '#E50914', 'marginBottom': '20px'}),
+                html.H3("Filter Options", style={'color': '#E50914', 'marginBottom': '1rem'}),
                 html.Div([
-                    html.Label("Select Year Range:", style={'fontSize': '16px', 'marginBottom': '10px'}),
+                    html.Label("Select Year Range:", style={'fontSize': '1rem', 'marginBottom': '0.5rem'}),
                     dcc.RangeSlider(
                         min=min_year, max=max_year, step=1,
                         marks={y: str(y) for y in range(min_year, max_year + 1, 2)},
                         value=[max(min_year, 2015), min(max_year, 2020)],
                         id='year-range',
-                        tooltip={'placement': 'bottom', 'always_visible': True}
+                        tooltip={'placement': 'bottom', 'always_visible': True},
+                        className='dash-slider'
                     )
-                ], style={'marginBottom': '30px'}),
+                ], style={'marginBottom': '1.5rem'}),
+
+                html.Div(
+                    className='filter-row',
+                    children=[
+                        html.Div(
+                            className='filter-item',
+                            children=[
+                                html.Label("Select Type:", style={'fontSize': '1rem'}),
+                                dcc.Dropdown(
+                                    options=[{'label': t, 'value': t} for t in df['type'].unique() if pd.notna(t)],
+                                    value='Movie',
+                                    id='type-selector',
+                                    className='dash-dropdown'
+                                )
+                            ]
+                        ),
+
+                        html.Div(
+                            className='filter-item',
+                            children=[
+                                html.Label("Select Country:", style={'fontSize': '1rem'}),
+                                dcc.Dropdown(
+                                    options=[{'label': c, 'value': c} for c in all_countries],
+                                    value='United States' if 'United States' in all_countries else all_countries[
+                                        0] if all_countries else 'Unknown',
+                                    id='country-selector',
+                                    className='dash-dropdown'
+                                )
+                            ]
+                        ),
+
+                        html.Div(
+                            className='filter-item',
+                            children=[
+                                html.Label("Select Actor:", style={'fontSize': '1rem'}),
+                                dcc.Dropdown(
+                                    options=[{'label': actor, 'value': actor} for actor in all_casts],
+                                    value='Robert De Niro' if 'Robert De Niro' in all_casts else all_casts[
+                                        0] if all_casts else 'Unknown',
+                                    id='actor-selector',
+                                    className='dash-dropdown'
+                                )
+                            ]
+                        ),
+                    ]
+                ),
 
                 html.Div([
-                    html.Div([
-                        html.Label("Select Type:", style={'fontSize': '16px'}),
-                        dcc.Dropdown(
-                            options=[{'label': t, 'value': t} for t in df['type'].unique() if pd.notna(t)],
-                            value='Movie',
-                            id='type-selector',
-                            style={'backgroundColor': '#2a2a2a', 'color': 'white', 'border': 'none'}
-                        )
-                    ], style={'width': '32%', 'display': 'inline-block', 'marginRight': '2%'}),
-
-                    html.Div([
-                        html.Label("Select Country:", style={'fontSize': '16px'}),
-                        dcc.Dropdown(
-                            options=[{'label': c, 'value': c} for c in all_countries],
-                            value='United States' if 'United States' in all_countries else all_countries[
-                                0] if all_countries else 'Unknown',
-                            id='country-selector',
-                            style={'backgroundColor': '#2a2a2a', 'color': 'white', 'border': 'none'}
-                        )
-                    ], style={'width': '32%', 'display': 'inline-block', 'marginRight': '2%'}),
-
-                    html.Div([
-                        html.Label("Select Actor:", style={'fontSize': '16px'}),
-                        dcc.Dropdown(
-                            options=[{'label': actor, 'value': actor} for actor in all_casts],
-                            value='Robert De Niro' if 'Robert De Niro' in all_casts else all_casts[
-                                0] if all_casts else 'Unknown',
-                            id='actor-selector',
-                            style={'backgroundColor': '#2a2a2a', 'color': 'white', 'border': 'none'}
-                        )
-                    ], style={'width': '32%', 'display': 'inline-block'}),
-                ], style={'display': 'flex', 'justifyContent': 'space-between'}),
-
-                html.Div([
-                    html.Label("Select Movie Duration (Minutes):", style={'fontSize': '16px', 'marginTop': '20px'}),
+                    html.Label("Select Movie Duration (Minutes):", style={'fontSize': '1rem', 'marginTop': '1rem'}),
                     dcc.RangeSlider(
                         min=0, max=200, step=10,
                         marks={i: str(i) for i in range(0, 201, 30)},
                         value=[60, 120],
                         id='duration-slider',
-                        tooltip={'placement': 'bottom', 'always_visible': True}
+                        tooltip={'placement': 'bottom', 'always_visible': True},
+                        className='dash-slider'
                     )
-                ], style={'marginTop': '20px'}),
-            ],
-            style={
-                'backgroundColor': '#1f1f1f',
-                'padding': '20px',
-                'borderRadius': '10px',
-                'boxShadow': '0 4px 8px rgba(0,0,0,0.3)',
-                'marginBottom': '40px'
-            }
+                ], style={'marginTop': '1rem'}),
+            ]
         ),
 
         dcc.Loading(
             id="loading",
             type="circle",
             children=[
-                html.Div([
-                    dcc.Graph(id='genre-bar', style={'height': '400px'}),
-                    dcc.Graph(id='rating-pie', style={'height': '400px'}),
-                    dcc.Graph(id='year-trend', style={'height': '400px'}),
-                ], style={
-                    'display': 'grid',
-                    'gridTemplateColumns': '1fr 1fr',
-                    'gap': '20px'
-                })
+                html.Div(
+                    className='graph-container',
+                    children=[
+                        dcc.Graph(id='genre-bar', className='graph'),
+                        dcc.Graph(id='rating-pie', className='graph'),
+                        dcc.Graph(id='year-trend', className='graph'),
+                    ]
+                )
             ]
         )
     ]
