@@ -104,3 +104,5 @@ def update_graphs(selected_year, selected_type, selected_country):
 
     return fig_genre, fig_rating, fig_trend
 
+if __name__ == '__main__':
+    app.run_server(debug=True)
