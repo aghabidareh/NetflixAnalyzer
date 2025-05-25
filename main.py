@@ -126,3 +126,5 @@ def update_dashboard(year_range, type_selected, country_selected, actor_selected
 
     return fig_genre, fig_rating, fig_trend
 
+if __name__ == '__main__':
+    app.run(debug=True)
