@@ -27,11 +27,13 @@ all_countries = sorted(set(c for c in df['country'].str.split(', ').explode().st
 min_year = max(2000, df[df['release_year'] > 0]['release_year'].min())
 max_year = df['release_year'].max()
 
+
 def create_empty_figure(title):
     fig = px.scatter(x=[0], y=[0], labels={'x': '', 'y': ''}, title=f"{title} (No Data Available)")
     fig.update_traces(marker=dict(size=0))  # Hide the scatter point
     fig.update_layout(template='plotly_dark', showlegend=False)
     return fig
+
 
 app = dash.Dash(__name__)
 app.title = "Netflix Dashboard V2"
@@ -63,7 +65,8 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
             html.Label("Select Country:"),
             dcc.Dropdown(
                 options=[{'label': c, 'value': c} for c in all_countries],
-                value='United States' if 'United States' in all_countries else all_countries[0] if all_countries else 'Unknown',
+                value='United States' if 'United States' in all_countries else all_countries[
+                    0] if all_countries else 'Unknown',
                 id='country-selector'
             )
         ], style={'width': '32%', 'display': 'inline-block', 'marginRight': '2%'}),
@@ -93,6 +96,7 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
     dcc.Graph(id='year-trend')
 ])
 
+
 @app.callback(
     [Output('genre-bar', 'figure'),
      Output('rating-pie', 'figure'),
@@ -105,13 +109,14 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
 )
 def update_dashboard(year_range, type_selected, country_selected, actor_selected, duration_range):
     if not all([year_range, type_selected, country_selected, actor_selected, duration_range]):
-        return create_empty_figure("Top Genres"), create_empty_figure("Rating Distribution"), create_empty_figure("Content Trend Over Years")
+        return create_empty_figure("Top Genres"), create_empty_figure("Rating Distribution"), create_empty_figure(
+            "Content Trend Over Years")
 
     filtered = df[
         (df['release_year'] >= year_range[0]) &
         (df['release_year'] <= year_range[1]) &
         (df['type'] == type_selected)
-    ]
+        ]
 
     if country_selected:
         filtered = filtered[filtered['country'].str.contains(re.escape(country_selected), case=False, na=False)]
@@ -123,15 +128,16 @@ def update_dashboard(year_range, type_selected, country_selected, actor_selected
             (filtered['duration_int'] >= duration_range[0]) &
             (filtered['duration_int'] <= duration_range[1]) &
             (filtered['duration_type'].str.contains('min', case=False, na=False))
-        ]
+            ]
     else:
         filtered = filtered[
             (filtered['duration_int'] > 0) &
             (filtered['duration_type'].str.contains('Season', case=False, na=False))
-        ]
+            ]
 
     if filtered.empty:
-        return create_empty_figure("Top Genres"), create_empty_figure("Rating Distribution"), create_empty_figure("Content Trend Over Years")
+        return create_empty_figure("Top Genres"), create_empty_figure("Rating Distribution"), create_empty_figure(
+            "Content Trend Over Years")
 
     genre = filtered['listed_in'].str.split(',').explode().str.strip().value_counts().nlargest(10)
     fig_genre = px.bar(
@@ -161,6 +167,7 @@ def update_dashboard(year_range, type_selected, country_selected, actor_selected
     fig_trend.update_layout(template='plotly_dark')
 
     return fig_genre, fig_rating, fig_trend
+
 
 if __name__ == '__main__':
     app.run(debug=True)
