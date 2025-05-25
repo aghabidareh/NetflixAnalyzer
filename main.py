@@ -4,7 +4,12 @@ import pandas as pd
 import plotly.express as px
 import re
 
-df = pd.read_csv("netflix_titles.csv")
+try:
+    df = pd.read_csv("netflix_titles.csv")
+except FileNotFoundError:
+    print("Error: 'netflix_titles.csv' not found. Please ensure the file is in the correct directory.")
+    exit()
+
 df['date_added'] = pd.to_datetime(df['date_added'].str.strip(), errors='coerce')
 df['release_year'] = df['release_year'].fillna(0).astype(int)
 df['country'] = df['country'].fillna("Unknown")
@@ -14,13 +19,19 @@ df['rating'] = df['rating'].fillna("Unknown")
 df['duration'] = df['duration'].fillna("Unknown")
 
 df['duration_int'] = df['duration'].str.extract(r'(\d+)').astype(float).fillna(0)
-df['duration_type'] = df['duration'].str.extract('([a-zA-Z]+)')
+df['duration_type'] = df['duration'].str.extract('([a-zA-Z]+)').fillna("Unknown")
 
 all_casts = df['cast'].str.split(', ').explode().str.strip().value_counts().nlargest(50).index.tolist()
 all_countries = sorted(set(c for c in df['country'].str.split(', ').explode().str.strip() if c and c != "Unknown"))
 
-min_year = max(2000, df['release_year'].min())
+min_year = max(2000, df[df['release_year'] > 0]['release_year'].min())  # Exclude invalid years
 max_year = df['release_year'].max()
+
+def create_empty_figure(title):
+    fig = px.scatter(x=[0], y=[0], labels={'x': '', 'y': ''}, title=f"{title} (No Data Available)")
+    fig.update_traces(marker=dict(size=0))  # Hide the scatter point
+    fig.update_layout(template='plotly_dark', showlegend=False)
+    return fig
 
 app = dash.Dash(__name__)
 app.title = "Netflix Dashboard V2"
@@ -42,7 +53,7 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
         html.Div([
             html.Label("Select Type:"),
             dcc.Dropdown(
-                options=[{'label': t, 'value': t} for t in df['type'].unique()],
+                options=[{'label': t, 'value': t} for t in df['type'].unique() if pd.notna(t)],
                 value='Movie',
                 id='type-selector'
             )
@@ -52,7 +63,7 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
             html.Label("Select Country:"),
             dcc.Dropdown(
                 options=[{'label': c, 'value': c} for c in all_countries],
-                value='United States',
+                value='United States' if 'United States' in all_countries else all_countries[0] if all_countries else 'Unknown',
                 id='country-selector'
             )
         ], style={'width': '32%', 'display': 'inline-block', 'marginRight': '2%'}),
@@ -61,7 +72,7 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
             html.Label("Select Actor:"),
             dcc.Dropdown(
                 options=[{'label': actor, 'value': actor} for actor in all_casts],
-                value='Robert De Niro',
+                value='Robert De Niro' if 'Robert De Niro' in all_casts else all_casts[0] if all_casts else 'Unknown',
                 id='actor-selector'
             )
         ], style={'width': '32%', 'display': 'inline-block'}),
@@ -93,24 +104,34 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
      Input('duration-slider', 'value')]
 )
 def update_dashboard(year_range, type_selected, country_selected, actor_selected, duration_range):
+    if not all([year_range, type_selected, country_selected, actor_selected, duration_range]):
+        return create_empty_figure("Top Genres"), create_empty_figure("Rating Distribution"), create_empty_figure("Content Trend Over Years")
+
     filtered = df[
         (df['release_year'] >= year_range[0]) &
         (df['release_year'] <= year_range[1]) &
-        (df['type'] == type_selected) &
-        (df['country'].str.contains(re.escape(country_selected), na=False)) &
-        (df['cast'].str.contains(re.escape(actor_selected), na=False))
+        (df['type'] == type_selected)
     ]
+
+    if country_selected:
+        filtered = filtered[filtered['country'].str.contains(re.escape(country_selected), case=False, na=False)]
+    if actor_selected:
+        filtered = filtered[filtered['cast'].str.contains(re.escape(actor_selected), case=False, na=False)]
 
     if type_selected == 'Movie':
         filtered = filtered[
             (filtered['duration_int'] >= duration_range[0]) &
             (filtered['duration_int'] <= duration_range[1]) &
-            (filtered['duration_type'] == 'min')
+            (filtered['duration_type'].str.contains('min', case=False, na=False))
         ]
     else:
         filtered = filtered[
-            (filtered['duration_int'] > 0) | (filtered['duration_type'] == 'Season')
+            (filtered['duration_int'] > 0) &
+            (filtered['duration_type'].str.contains('Season', case=False, na=False))
         ]
+
+    if filtered.empty:
+        return create_empty_figure("Top Genres"), create_empty_figure("Rating Distribution"), create_empty_figure("Content Trend Over Years")
 
     genre = filtered['listed_in'].str.split(',').explode().str.strip().value_counts().nlargest(10)
     fig_genre = px.bar(
@@ -118,7 +139,7 @@ def update_dashboard(year_range, type_selected, country_selected, actor_selected
         labels={'x': 'Genre', 'y': 'Count'},
         title='Top Genres',
         color_discrete_sequence=['#E50914']
-    )
+    ) if not genre.empty else create_empty_figure("Top Genres")
     fig_genre.update_layout(template='plotly_dark')
 
     rating = filtered['rating'].value_counts().nlargest(10)
@@ -126,7 +147,7 @@ def update_dashboard(year_range, type_selected, country_selected, actor_selected
         names=rating.index, values=rating.values,
         title='Rating Distribution',
         color_discrete_sequence=px.colors.sequential.Reds
-    )
+    ) if not rating.empty else create_empty_figure("Rating Distribution")
     fig_rating.update_layout(template='plotly_dark')
 
     trend = filtered.groupby('release_year').size()
@@ -136,7 +157,7 @@ def update_dashboard(year_range, type_selected, country_selected, actor_selected
         title='Content Trend Over Years',
         markers=True,
         color_discrete_sequence=['#08F7FE']
-    )
+    ) if not trend.empty else create_empty_figure("Content Trend Over Years")
     fig_trend.update_layout(template='plotly_dark')
 
     return fig_genre, fig_rating, fig_trend
