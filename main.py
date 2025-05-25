@@ -61,4 +61,46 @@ app.layout = html.Div(style={
     dcc.Graph(id='yearly-content-trend')
 ])
 
+@app.callback(
+    [Output('content-by-genre', 'figure'),
+     Output('rating-distribution', 'figure'),
+     Output('yearly-content-trend', 'figure')],
+    [Input('year-selector', 'value'),
+     Input('type-selector', 'value'),
+     Input('country-selector', 'value')]
+)
+def update_graphs(selected_year, selected_type, selected_country):
+    filtered_df = df[(df['release_year'] == selected_year) &
+                     (df['type'] == selected_type) &
+                     (df['country'].str.contains(selected_country))]
+
+    genre_split = filtered_df['listed_in'].str.split(',').explode().str.strip()
+    genre_counts = genre_split.value_counts().nlargest(10)
+    fig_genre = px.bar(
+        x=genre_counts.index, y=genre_counts.values,
+        labels={'x': 'Genre', 'y': 'Count'},
+        title=f"Top Genres ({selected_year})",
+        color_discrete_sequence=['#E50914']
+    )
+    fig_genre.update_layout(template='plotly_dark')
+
+    rating_counts = filtered_df['rating'].value_counts().nlargest(10)
+    fig_rating = px.pie(
+        names=rating_counts.index, values=rating_counts.values,
+        title='Rating Distribution',
+        color_discrete_sequence=px.colors.sequential.Reds
+    )
+    fig_rating.update_layout(template='plotly_dark')
+
+    year_count = df[df['type'] == selected_type].groupby('release_year').size()
+    fig_trend = px.line(
+        x=year_count.index, y=year_count.values,
+        labels={'x': 'Year', 'y': 'Number of Titles'},
+        title='Titles Over the Years',
+        markers=True,
+        color_discrete_sequence=['#08F7FE']
+    )
+    fig_trend.update_layout(template='plotly_dark')
+
+    return fig_genre, fig_rating, fig_trend
 
