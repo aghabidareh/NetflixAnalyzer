@@ -79,3 +79,15 @@ app.layout = dbc.Container([
         ])
     ])
 ], fluid=True)
+
+@app.callback(
+    Output('release_trend', 'figure'),
+    Input('content_type', 'value')
+)
+def update_release_trend(selected_type):
+    filtered_df = df[df['type'] == selected_type]
+    trend = filtered_df['release_year'].value_counts().sort_index()
+    fig = px.line(x=trend.index, y=trend.values, labels={'x': 'Release Year', 'y': 'Number of Titles'},
+                  title=f'{selected_type} Releases Over the Years')
+    return fig
+
