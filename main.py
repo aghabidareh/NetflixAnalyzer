@@ -20,4 +20,61 @@ df['duration_int'] = df['duration_int'].fillna(0)
 app = dash.Dash(__name__)
 app.title = "Netflix Dashboard V2"
 
+app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'padding': '20px'}, children=[
+    html.H1("🎬 Netflix Dashboard – Advanced Filters", style={'textAlign': 'center', 'color': '#E50914'}),
+
+    html.Div([
+        html.Div([
+            html.Label("Select Year Range:"),
+            dcc.RangeSlider(
+                min=2000, max=2021, step=1,
+                marks={y: str(y) for y in range(2000, 2022, 2)},
+                value=[2015, 2020],
+                id='year-range'
+            )
+        ], style={'width': '100%', 'marginBottom': '25px'}),
+
+        html.Div([
+            html.Label("Select Type:"),
+            dcc.Dropdown(
+                options=[{'label': t, 'value': t} for t in df['type'].unique()],
+                value='Movie',
+                id='type-selector'
+            )
+        ], style={'width': '32%', 'display': 'inline-block', 'marginRight': '2%'}),
+
+        html.Div([
+            html.Label("Select Country:"),
+            dcc.Dropdown(
+                options=[{'label': c, 'value': c} for c in sorted(set(', '.join(df['country']).split(', ')))],
+                value='United States',
+                id='country-selector'
+            )
+        ], style={'width': '32%', 'display': 'inline-block', 'marginRight': '2%'}),
+
+        html.Div([
+            html.Label("Select Actor:"),
+            dcc.Dropdown(
+                options=[{'label': actor, 'value': actor} for actor in all_casts],
+                value='Robert De Niro',
+                id='actor-selector'
+            )
+        ], style={'width': '32%', 'display': 'inline-block'}),
+    ]),
+
+    html.Div([
+        html.Label("Select Movie Duration Range (Minutes):"),
+        dcc.RangeSlider(
+            min=0, max=200, step=10,
+            marks={i: str(i) for i in range(0, 201, 30)},
+            value=[60, 120],
+            id='duration-slider'
+        )
+    ], style={'marginTop': '30px', 'marginBottom': '40px'}),
+
+    dcc.Graph(id='genre-bar'),
+    dcc.Graph(id='rating-pie'),
+    dcc.Graph(id='year-trend')
+])
+
 
