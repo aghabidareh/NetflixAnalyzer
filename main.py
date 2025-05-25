@@ -13,7 +13,7 @@ df['duration'] = df['duration'].fillna("Unknown")
 
 all_casts = df['cast'].str.split(', ').explode().value_counts().nlargest(50).index.tolist()
 
-df['duration_int'] = df['duration'].str.extract('(\d+)').astype(float)
+df['duration_int'] = df['duration'].str.extract(r'(\d+)').astype(float)
 df['duration_type'] = df['duration'].str.extract('([a-zA-Z]+)')
 df['duration_int'] = df['duration_int'].fillna(0)
 
