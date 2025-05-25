@@ -12,3 +12,6 @@ df['listed_in'] = df['listed_in'].fillna("Unknown")
 years = sorted(df['release_year'].unique())
 countries = sorted(set(', '.join(df['country'].dropna()).split(', ')))
 types = df['type'].unique()
+
+app = dash.Dash(__name__)
+app.title = "Netflix Dashboard"
