@@ -16,3 +16,8 @@ all_casts = df['cast'].str.split(', ').explode().value_counts().nlargest(50).ind
 df['duration_int'] = df['duration'].str.extract('(\d+)').astype(float)
 df['duration_type'] = df['duration'].str.extract('([a-zA-Z]+)')
 df['duration_int'] = df['duration_int'].fillna(0)
+
+app = dash.Dash(__name__)
+app.title = "Netflix Dashboard V2"
+
+
