@@ -2,6 +2,7 @@ import dash
 from dash import dcc, html, Input, Output
 import pandas as pd
 import plotly.express as px
+import re
 
 df = pd.read_csv("netflix_titles.csv")
 df['date_added'] = pd.to_datetime(df['date_added'].str.strip(), errors='coerce')
@@ -9,13 +10,17 @@ df['release_year'] = df['release_year'].fillna(0).astype(int)
 df['country'] = df['country'].fillna("Unknown")
 df['listed_in'] = df['listed_in'].fillna("Unknown")
 df['cast'] = df['cast'].fillna("Unknown")
+df['rating'] = df['rating'].fillna("Unknown")
 df['duration'] = df['duration'].fillna("Unknown")
 
-all_casts = df['cast'].str.split(', ').explode().value_counts().nlargest(50).index.tolist()
-
-df['duration_int'] = df['duration'].str.extract(r'(\d+)').astype(float)
+df['duration_int'] = df['duration'].str.extract(r'(\d+)').astype(float).fillna(0)
 df['duration_type'] = df['duration'].str.extract('([a-zA-Z]+)')
-df['duration_int'] = df['duration_int'].fillna(0)
+
+all_casts = df['cast'].str.split(', ').explode().str.strip().value_counts().nlargest(50).index.tolist()
+all_countries = sorted(set(c for c in df['country'].str.split(', ').explode().str.strip() if c and c != "Unknown"))
+
+min_year = max(2000, df['release_year'].min())
+max_year = df['release_year'].max()
 
 app = dash.Dash(__name__)
 app.title = "Netflix Dashboard V2"
@@ -27,9 +32,9 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
         html.Div([
             html.Label("Select Year Range:"),
             dcc.RangeSlider(
-                min=2000, max=2021, step=1,
-                marks={y: str(y) for y in range(2000, 2022, 2)},
-                value=[2015, 2020],
+                min=min_year, max=max_year, step=1,
+                marks={y: str(y) for y in range(min_year, max_year + 1, 2)},
+                value=[max(min_year, 2015), min(max_year, 2020)],
                 id='year-range'
             )
         ], style={'width': '100%', 'marginBottom': '25px'}),
@@ -46,7 +51,7 @@ app.layout = html.Div(style={'backgroundColor': '#121212', 'color': 'white', 'pa
         html.Div([
             html.Label("Select Country:"),
             dcc.Dropdown(
-                options=[{'label': c, 'value': c} for c in sorted(set(', '.join(df['country']).split(', ')))],
+                options=[{'label': c, 'value': c} for c in all_countries],
                 value='United States',
                 id='country-selector'
             )
@@ -92,10 +97,20 @@ def update_dashboard(year_range, type_selected, country_selected, actor_selected
         (df['release_year'] >= year_range[0]) &
         (df['release_year'] <= year_range[1]) &
         (df['type'] == type_selected) &
-        (df['country'].str.contains(country_selected)) &
-        (df['cast'].str.contains(actor_selected)) &
-        ((df['duration_int'] >= duration_range[0]) & (df['duration_int'] <= duration_range[1]) if type_selected == 'Movie' else True)
+        (df['country'].str.contains(re.escape(country_selected), na=False)) &
+        (df['cast'].str.contains(re.escape(actor_selected), na=False))
     ]
+
+    if type_selected == 'Movie':
+        filtered = filtered[
+            (filtered['duration_int'] >= duration_range[0]) &
+            (filtered['duration_int'] <= duration_range[1]) &
+            (filtered['duration_type'] == 'min')
+        ]
+    else:
+        filtered = filtered[
+            (filtered['duration_int'] > 0) | (filtered['duration_type'] == 'Season')
+        ]
 
     genre = filtered['listed_in'].str.split(',').explode().str.strip().value_counts().nlargest(10)
     fig_genre = px.bar(
@@ -114,7 +129,7 @@ def update_dashboard(year_range, type_selected, country_selected, actor_selected
     )
     fig_rating.update_layout(template='plotly_dark')
 
-    trend = df[(df['type'] == type_selected)].groupby('release_year').size()
+    trend = filtered.groupby('release_year').size()
     fig_trend = px.line(
         x=trend.index, y=trend.values,
         labels={'x': 'Year', 'y': 'Number of Titles'},
